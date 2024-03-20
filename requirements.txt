@@ -1,0 +1,6 @@
+openai
+Flask
+python-dotenv
+Flask-CORS
+requests
+pymupdf
