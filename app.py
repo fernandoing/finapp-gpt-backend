@@ -1,153 +1,53 @@
-from flask import Flask, request, jsonify
-import os
-import requests
-from openai import OpenAI
-from dotenv import load_dotenv
+from flask import Flask, jsonify, request
+from flask_injector import inject, FlaskInjector
 from flask_cors import CORS
-from datetime import datetime
-import prompts
-import json
+from ioc import configure
 
-load_dotenv()
+from services import LoadChatService
+from services import GPTService
+from services import ExpenseService
 
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-EXTERNAL_API_URL = os.getenv('EXTERNAL_API_URL')
-HEADERS = {"Authorization": os.getenv('AUTHORIZATION')}
+import os
 
 app = Flask(__name__)
 CORS(app)
 
 
-def chat_with_gpt_for_expenses(user_input, categories):
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    prompt = prompts.add_expense.format(
-        user_input=user_input, json_example=prompts.json_example, categories=categories, current_date=current_date)
-    response = chat_with_gpt(prompt)
-    try:
-        expense_details = json.loads(response)
-        if 'expense_name' in expense_details:
-            return expense_details
-        else:
-            return {}
-    except json.JSONDecodeError:
-        return {}
+@app.route('/chats', methods=['GET'])
+@inject
+def chats(service: LoadChatService):
+    token = request.headers.get('Authorization')
+    data = service.load_history(key=token)
+    return jsonify({'chats': data})
 
 
-def add_expense(expense_data):
-    response = requests.post(
-        f"{EXTERNAL_API_URL}/expenses", json=expense_data, headers=HEADERS)
-    print(response)
-    if response.ok:
-        return response.json()
-    else:
-        return {"error": f"API call failed with status code {response.status_code}", "details": response.text}
-
-
-def get_expenses():
-    response = requests.get(f"{EXTERNAL_API_URL}/expenses", headers=HEADERS)
-    if response.ok:
-        return response.json()
-    else:
-        return {"error": f"API call failed with status code {response.status_code}", "details": response.text}
-
-
-def get_categories():
-    response = requests.get(
-        f"{EXTERNAL_API_URL}/expense_categories", headers=HEADERS)
-    if response.ok:
-        return response.json()
-    else:
-        return {"error": f"API call failed with status code {response.status_code}", "details": response.text}
-
-
-def get_history():
-    response = requests.get(
-        f"{EXTERNAL_API_URL}/chat_history", headers=HEADERS)
-    if response.ok:
-        return response.json()
-    else:
-        return {"error": f"API call failed with status code {response.status_code}", "details": response.text}
-
-
-def add_history(input):
-    response = requests.post(
-        f"{EXTERNAL_API_URL}/chat_history", json=input, headers=HEADERS)
-    if response.ok:
-        return response.json()
-    else:
-        return {"error": f"API call failed with status code {response.status_code}", "details": response.text}
-
-
-
-
-
-
-
-
-@app.route('/get_response', methods=['POST'])
-def get_response():
+@app.route('/message', methods=['POST'])
+@inject
+def chat(service: ExpenseService):
+    token = request.headers.get('Authorization')
     data = request.get_json()
-    user_input = data['user_input']
-    add_history({"role": 1, "message": user_input})
+    message = {'role': 'user', 'content': data['user_input']}
 
-    prompt = prompts.determine_intent.format(user_input=user_input)
-    intent = chat_with_gpt(prompt)
-    print(intent)
-    response = ""
-    if "1" in intent:
-        categories = get_categories()
-        expense_details = chat_with_gpt_for_expenses(user_input, categories)
-        if expense_details:
-            print(expense_details)
-            expense_response = add_expense(expense_details)
-            print(expense_response)
-            prompt = prompts.expense_added.format(user_input=expense_details)
-            print(prompt)
-            if not "error" in expense_response:
-                response = chat_with_gpt(prompt)
-            else:
-                return jsonify({'response': "There was an error adding your expenses. Try again later."})
-        else:
-            response = chat_with_gpt(prompts.unclear_expense)
-    elif "2" in intent:
-        expenses = get_expenses()
-        prompt = prompts.structure_expenses.format(
-            user_input=user_input, expenses=expenses)
-        print(prompt)
-        if not "error" in expenses:
-            response = chat_with_gpt(prompt)
-        else:
-            return jsonify({'response': "There was an error retrieving your expenses. Try again later."})
-    else:
-        response = chat_with_gpt(user_input)
-    add_history({"role": 2, "message": response})
-    print(response)
-    return jsonify({'response': response})
+    response = ''
 
+    choice = service.process_user_input(message)
 
-def chat_with_gpt(prompt, model="gpt-3.5-turbo"):
-    # previous_messages = get_history().get('chat_history')
-    # print(previous_messages)
-    previous_messages = []
-    if previous_messages is None:
-        previous_messages = []
+    if choice == -1:
+        return jsonify({'response': 'Something went wrong. Please try again later.'})
 
-    messages = [
-        {"role": "system", "content": prompts.base_prompt}
-    ] + previous_messages + [
-        {"role": "user", "content": prompt}
-    ]
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages
+    if choice == 1:
+        response = service.user_add_expense(user_input=message, token=token)
 
-        )
-        print(response)
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        print(e)
+    if choice == 2:
+        response = service.user_view_expenses(user_input=message, token=token)
+
+    if choice == 3:
+        response = service.user_general_talk(user_input=message, token=token)
+
+    return jsonify(response)
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    FlaskInjector(app=app, modules=[configure])
+    app.run(debug=True, host=os.getenv('APP_HOST', '127.0.0.1'))
+
