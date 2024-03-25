@@ -157,12 +157,13 @@ class ExpenseManager(ExpenseService):
         return {'response': response}
 
     def user_general_talk(self, user_input: dict, token: str) -> str:
+        categories = self._cat_repo.get(key=None)
         conversation = self._load_chat.load(key=token)
         conversation.append(user_input)
 
         response = self._gpt.ask(
             conversation=conversation,
-            instructions=BASE_PROMPT
+            instructions=BASE_PROMPT.format(categories=categories)
         )
 
         self._save_chat_history(message=user_input, response=response, token=token)
