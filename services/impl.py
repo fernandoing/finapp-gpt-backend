@@ -116,14 +116,17 @@ class ExpenseManager(ExpenseService):
 
     def user_add_expense(self, user_input: dict, token: str) -> dict:
         categories = self._cat_repo.get(key=None)
+        conversation = self._load_chat.load(key=token)
+        conversation.append(user_input)
+
         response = self._gpt.ask(
-            conversation=[user_input],
+            conversation=conversation,
             instructions=ADD_EXPENSE.format(json_example=JSON_EXAMPLE, categories=categories)
         )
 
         if not self._validate_expense(response):
             ask_more = self._gpt.ask(
-                conversation=[user_input],
+                conversation=conversation,
                 instructions=UNCLEAR_EXPENSE
             )
             self._save_chat_history(message=user_input, response=ask_more, token=token)
@@ -135,7 +138,7 @@ class ExpenseManager(ExpenseService):
             return {'response': 'An error occurred while adding the expense.'}
 
         success = self._gpt.ask(
-            conversation=[user_input],
+            conversation=conversation,
             instructions=EXPENSE_ADDED
         )
 
