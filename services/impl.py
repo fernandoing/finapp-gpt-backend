@@ -13,7 +13,7 @@ class ChatService(GPTService):
         self._api_key = api_key
         self._client = OpenAI(api_key=self._api_key)
 
-    def ask(self, conversation: list, instructions: str = BASE_PROMPT, model: str = "gpt-3.5-turbo"):
+    def ask(self, conversation: list, instructions: str = DEFAULT_PROMPT, model: str = "gpt-3.5-turbo"):
         conversation.insert(0, {'role': 'system', 'content': instructions})
         try:
             ai_response = self._client.chat.completions.create(
