@@ -1,6 +1,7 @@
 openai
 Flask
-python-dotenv
+Flask-Injector
 Flask-CORS
+python-dotenv
 requests
-pymupdf
+
