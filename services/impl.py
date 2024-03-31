@@ -6,6 +6,7 @@ from persistence import FullRepository, Repository, BasicRepository
 from prompts import *
 
 import json
+import datetime
 
 
 class ChatService(GPTService):
@@ -13,15 +14,21 @@ class ChatService(GPTService):
         self._api_key = api_key
         self._client = OpenAI(api_key=self._api_key)
 
-    def ask(self, conversation: list, instructions: str = DEFAULT_PROMPT, model: str = "gpt-3.5-turbo"):
+    def ask(self,
+            conversation: list,
+            instructions: str = DEFAULT_PROMPT,
+            model: str = "gpt-3.5-turbo",
+            temp: float = 0.7):
         conversation.insert(0, {'role': 'system', 'content': instructions})
         try:
             ai_response = self._client.chat.completions.create(
                 messages=conversation,
-                model=model
+                model=model,
+                temperature=temp
             )
             return ai_response.choices[0].message.content
         except Exception as e:
+            print(e.message)
             return "Something went wrong with the AI. Please try again later."
 
 
@@ -104,10 +111,11 @@ class ExpenseManager(ExpenseService):
         self._gpt = gpt
         self._load_chat = load_chat
 
-    def process_user_input(self, user_input: dict) -> int:
+    def process_user_input(self, user_input: dict, token) -> int:
         response = self._gpt.ask(
             conversation=[user_input],
-            instructions=DETERMINE_INTENT
+            instructions=DETERMINE_INTENT,
+            temp=0.3
         )
 
         if not self._validate_intent(response):
@@ -115,35 +123,39 @@ class ExpenseManager(ExpenseService):
         return int(response)
 
     def user_add_expense(self, user_input: dict, token: str) -> dict:
-        categories = self._cat_repo.get(key=None)
+        list_categories = self._cat_repo.get(key=None)
         conversation = self._load_chat.load(key=token)
         conversation.append(user_input)
 
-        response = self._gpt.ask(
+        gpt_answer = self._gpt.ask(
             conversation=conversation,
-            instructions=ADD_EXPENSE.format(json_example=JSON_EXAMPLE, categories=categories)
+            instructions=ADD_EXPENSE.format(categories=list_categories, date=datetime.date.today()),
+            temp=0.5
         )
 
-        if not self._validate_expense(response):
-            ask_more = self._gpt.ask(
-                conversation=conversation,
-                instructions=UNCLEAR_EXPENSE
-            )
-            self._save_chat_history(message=user_input, response=ask_more, token=token)
-            return {'response': ask_more}
+        if not self._validate_payload(gpt_answer):
+            self._save_chat_history(message=user_input, response=gpt_answer, token=token)
+            return {'response': gpt_answer}
 
-        status = self._exp_repo.add(key=token, value=json.loads(response))
+        print(gpt_answer)
+        response: dict = json.loads(gpt_answer)
+        message = response.get('message')
+        expense = response
+        del expense['message']
+        print(expense)
+        print(message)
+
+        if not self._validate_expense(expense):
+            return {'response': 'Something went wrong while adding the expense. Please try again later.'}
+
+        status = self._exp_repo.add(key=token, value=expense)
+        print(status)
 
         if status is None:
             return {'response': 'An error occurred while adding the expense.'}
 
-        success = self._gpt.ask(
-            conversation=conversation,
-            instructions=EXPENSE_ADDED
-        )
-
-        self._save_chat_history(message=user_input, response=success, token=token)
-        return {'response': success}
+        self._save_chat_history(message=user_input, response=message, token=token)
+        return {'response': message}
 
     def user_view_expenses(self, user_input: dict, token: str) -> dict:
         expenses = self._exp_repo.get(key=token)
@@ -153,7 +165,7 @@ class ExpenseManager(ExpenseService):
 
         response = self._gpt.ask(
             conversation=[{'role': 'user', 'content': json.dumps(expenses)}],
-            instructions=STRUCTURE_EXPENSES
+            instructions=STRUCTURE_EXPENSES,
         )
 
         self._save_chat_history(message=user_input, response=response, token=token)
@@ -166,7 +178,8 @@ class ExpenseManager(ExpenseService):
 
         response = self._gpt.ask(
             conversation=conversation,
-            instructions=BASE_PROMPT.format(categories=categories)
+            instructions=BASE_PROMPT.format(categories=categories),
+            temp=0.7
         )
 
         self._save_chat_history(message=user_input, response=response, token=token)
@@ -180,14 +193,17 @@ class ExpenseManager(ExpenseService):
             return False
         return False
 
-    def _validate_expense(self, response: str) -> bool:
+    def _validate_payload(self, response: str) -> bool:
         try:
-            valid_json: dict = json.loads(response)
-            all_keys = {'exp_category_id', 'expense_amount', 'month_year', 'expense_name'}
-            return all(k in valid_json.keys() for k in all_keys)
+            _ = json.loads(response)
+            return True
         except json.JSONDecodeError:
             return False
         return False
+
+    def _validate_expense(self, payload: dict) -> bool:
+        all_keys = {'exp_category_id', 'expense_amount', 'month_year', 'expense_name'}
+        return all(k in payload.keys() for k in all_keys)
 
     def _save_chat_history(self, message: dict, response: str, token: str) -> bool:
         chat = [message]
