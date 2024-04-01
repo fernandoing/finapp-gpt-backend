@@ -3,7 +3,7 @@ from .service import GPTService
 from .service import LoadChatService
 from .service import ExpenseService
 from persistence import FullRepository, Repository, BasicRepository
-from prompts import *
+from prompts import DEFAULT_PROMPT, DETERMINE_INTENT, ADD_EXPENSE, STRUCTURE_EXPENSES, BASE_PROMPT
 
 import json
 import datetime
