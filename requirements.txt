@@ -4,4 +4,5 @@ Flask-Injector
 Flask-CORS
 python-dotenv
 requests
+boto3
 
