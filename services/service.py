@@ -9,7 +9,11 @@ class GPTService(ABC):
         self._api_key = api_key
 
     @abstractmethod
-    def ask(self, instructions: str, question: str, conversation: list, model: str = "gpt-3.5-turbo"):
+    def ask(self,
+            conversation: list,
+            instructions: str,
+            model: str,
+            temp: float):
         pass
 
 
@@ -37,7 +41,7 @@ class ExpenseService(ABC):
         self._repo = repository
 
     @abstractmethod
-    def process_user_input(self, user_input) -> int:
+    def process_user_input(self, user_input, token) -> int:
         pass
 
     @abstractmethod
@@ -51,4 +55,3 @@ class ExpenseService(ABC):
     @abstractmethod
     def user_general_talk(self, user_input, token) -> str:
         pass
-

@@ -30,7 +30,7 @@ def chat(service: ExpenseService):
 
     response = ''
 
-    choice = service.process_user_input(message)
+    choice = service.process_user_input(message, token)
 
     if choice == -1:
         return jsonify({'response': 'Something went wrong. Please try again later.'})
