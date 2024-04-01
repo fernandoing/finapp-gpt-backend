@@ -206,4 +206,3 @@ class ExpenseManager(ExpenseService):
         chat.append({'role': 'assistant', 'content': response})
         chats_saved = self._load_chat.save(key=token, value=chat)
         return chats_saved > 0
-

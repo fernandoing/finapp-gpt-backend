@@ -120,6 +120,7 @@ class ExpenseRepository(FullRepository):
         if response.status_code != 200:
             return None
         expenses = response.json().get('expenses')
+
         return expenses
 
     def get_by_id(self, key: str, id):

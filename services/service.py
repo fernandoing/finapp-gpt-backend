@@ -55,4 +55,3 @@ class ExpenseService(ABC):
     @abstractmethod
     def user_general_talk(self, user_input, token) -> str:
         pass
-
