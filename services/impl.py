@@ -137,19 +137,15 @@ class ExpenseManager(ExpenseService):
             self._save_chat_history(message=user_input, response=gpt_answer, token=token)
             return {'response': gpt_answer}
 
-        print(gpt_answer)
         response: dict = json.loads(gpt_answer)
         message = response.get('message')
         expense = response
         del expense['message']
-        print(expense)
-        print(message)
 
         if not self._validate_expense(expense):
             return {'response': 'Something went wrong while adding the expense. Please try again later.'}
 
         status = self._exp_repo.add(key=token, value=expense)
-        print(status)
 
         if status is None:
             return {'response': 'An error occurred while adding the expense.'}
