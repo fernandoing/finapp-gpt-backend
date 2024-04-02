@@ -12,9 +12,11 @@ import os
 app = Flask(__name__)
 CORS(app)
 
+
 @app.route('/healthz', methods=['GET'])
 def healthz():
     return {"status": "ok"}, 200
+
 
 @app.route('/chats', methods=['GET'])
 @inject
