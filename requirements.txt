@@ -5,4 +5,4 @@ Flask-CORS
 python-dotenv
 requests
 boto3
-
+gunicorn
