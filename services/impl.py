@@ -68,6 +68,12 @@ class GetChatHistoryService(LoadChatService):
             return 0
         return status.get('chats_added', 0)
 
+    def remove(self, key: str):
+        status = self._repo.delete(key)
+        if status is None:
+            return False
+        return status.get('deleted', False)
+
     def _transform_to_add(self, conversation: list[dict]) -> dict:
         roles = {
             'system': 1,

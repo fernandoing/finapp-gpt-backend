@@ -42,6 +42,23 @@ class LoadChatRepository(BasicRepository):
             return None
         return response.json()
 
+    def delete(self, key: str):
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        if key is not None:
+            headers["Authorization"] = key
+
+        response = requests.delete(
+            url=self._db_uri + f"/chat_history",
+            headers=headers
+        )
+        if response.status_code != 200:
+            return None
+
+        return response.json()
+
 
 class CatgeoryRepository(Repository):
     def __init__(self, db_uri: str):

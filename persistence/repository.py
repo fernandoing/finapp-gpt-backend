@@ -28,6 +28,10 @@ class BasicRepository(ABC):
     def add(self, key: str, value):
         pass
 
+    @abstractmethod
+    def delete(self, key: str):
+        pass
+
 
 class WriteRepository(ABC):
     @abstractmethod

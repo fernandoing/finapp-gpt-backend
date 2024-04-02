@@ -26,6 +26,13 @@ def chats(service: LoadChatService):
     return jsonify({'chats': data})
 
 
+@app.route('/chats', methods=['DELETE'])
+def remove_chats(service: LoadChatService):
+    token = request.headers.get('Authorization')
+    data = service.remove(key=token)
+    return jsonify({'removed': data})
+
+
 @app.route('/message', methods=['POST'])
 @inject
 def chat(service: ExpenseService):

@@ -34,6 +34,10 @@ class LoadChatService(ABC):
     def save(self, key: str, value):
         pass
 
+    @abstractmethod
+    def remove(self, key: str):
+        pass
+
 
 class ExpenseService(ABC):
     @abstractmethod
